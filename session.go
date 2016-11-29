@@ -55,7 +55,14 @@ func Session(c ssh.Conn, sess ssh.Channel, reqs <-chan *ssh.Request) {
 		}
 		/* TODO: Run it, pipe in stdin/out/err */
 		Debug("[%v] Executing command %q", c.RemoteAddr(), command)
-		fmt.Fprintf(sess, "Executing %q\r\n", command) /* DEBUG */
+		unfound, unparse, _ := ExecuteCommand(
+			command,
+			sess,
+			sess.Stderr(),
+		)
+		if unfound || unparse {
+			exit = 1
+		}
 	default:
 		Debug("wtf?") /* DEBUG */
 
@@ -87,13 +94,11 @@ func handleSessionRequests(
 		exec  *string = &EXEC
 	)
 	for req := range reqs {
-		switch req.Type { /* TODO: Finish this */
+		switch req.Type {
 		case "pty-req": /* Make a terminal */
 			Debug(
-				"[%v] PTY Request (%v / %q)",
+				"[%v] PTY Request",
 				c.RemoteAddr(),
-				req.WantReply,
-				req.Payload,
 			)
 			if *term, err = newTerminal(
 				sess,
@@ -125,9 +130,15 @@ func handleSessionRequests(
 				req.WantReply,
 				req.Payload,
 			)
-			/* TODO: Have requests update terminal */
 			req.Reply(false, nil)
 		}
+		Debug(
+			"[%v] Xnhandled session request %v %v %q",
+			c.RemoteAddr(),
+			req.Type,
+			req.WantReply,
+			req.Payload,
+		)
 
 	}
 }
@@ -143,7 +154,8 @@ func newTerminal(
 		err    error
 	)
 	/* New terminal */
-	term := terminal.NewTerminal(sess, Prompt())
+	term := terminal.NewTerminal(sess, "")
+	term.SetPrompt(Prompt(term))
 	/* Ignore terminal type */
 	_, payload, err = stringFromPayload(payload)
 	if nil != err {

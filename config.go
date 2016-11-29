@@ -5,15 +5,13 @@ package main
  * Server config
  * By J. Stuart McMurray
  * Created 20161108
- * Last Modified 20161108
+ * Last Modified 20161128
  */
 
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base64"
 	"fmt"
 
 	"golang.org/x/crypto/ssh"
@@ -47,12 +45,7 @@ func MakeServerConfig() (*ssh.ServerConfig, error) {
 		return nil, err
 	}
 	/* Print key in a usable form */
-	mpk := sha256.Sum256(skey.PublicKey().Marshal())
-	b := make([]byte, len(mpk))
-	for i, v := range mpk {
-		b[i] = v
-	}
-	Debug("Server's key: %s", base64.RawStdEncoding.EncodeToString(b))
+	Debug("Server's key: %s", ssh.FingerprintSHA256(skey.PublicKey()))
 	/* Add the server's key */
 	c.AddHostKey(skey)
 	return c, nil

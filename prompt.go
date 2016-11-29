@@ -13,6 +13,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 /* PromptData holds the cached prompt data */
@@ -53,7 +55,7 @@ func init() {
 
 /* Prompt returns a string like [user@hostname:directory]$ which is
 valid for the current state of the process. */
-func Prompt() string {
+func Prompt(t *terminal.Terminal) string {
 	/* Get working directory */
 	wd, err := os.Getwd()
 	if nil != err {
@@ -62,7 +64,11 @@ func Prompt() string {
 		wd = filepath.Clean(wd)
 	}
 	/* TODO: Colors */
-	return promptData.head + wd + promptData.tail
+	return string(t.Escape.Red) +
+		promptData.head +
+		wd +
+		promptData.tail +
+		string(t.Escape.Reset)
 }
 
 /* SetPromptUser sets the username for the prompt */

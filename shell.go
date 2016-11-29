@@ -10,7 +10,7 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	"io"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -38,7 +38,7 @@ func newlineReader(t **terminal.Terminal, s ssh.Channel) *lineReader {
 func (l *lineReader) ReadLine() (string, error) {
 	/* Prefer the terminal */
 	if nil != *l.term {
-		(*l.term).SetPrompt(Prompt())
+		(*l.term).SetPrompt(Prompt(*l.term))
 		return (*l.term).ReadLine()
 	}
 	/* Failing that, read a line */
@@ -64,13 +64,33 @@ func (l *lineReader) Write(buf []byte) (n int, err error) {
 
 /* handleTerm handles a request for a shell */
 func HandleShell(term **terminal.Terminal, sess ssh.Channel) uint32 {
-	lr := newlineReader(term, sess)
-	l, err := lr.ReadLine()
-	if nil != err {
-		Debug("E: %v", err)
-		return 0
+	var (
+		lr   = newlineReader(term, sess)
+		line string /* Read line */
+		exit bool
+		err  error
+	)
+
+	/* TODO: Print welcome info */
+	/* REPL */
+	for {
+		/* Grab a line from the user */
+		line, err = lr.ReadLine()
+		if nil != err {
+			switch err {
+			case io.EOF:
+				return 0
+			default:
+				/* TODO: Catch errors better */
+				Debug("Line read error: %v", err)
+				return 1
+			}
+		}
+		/* Run the command */
+		_, _, exit = ExecuteCommand(line, sess, sess.Stderr())
+		/* Exit if we ought */
+		if exit {
+			return 0
+		}
 	}
-	fmt.Fprintf(lr, "%v<--\r\n", l)
-	fmt.Fprintf(lr, "Done.\r\n")
-	return 0
 }
